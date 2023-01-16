@@ -1,6 +1,12 @@
+using MemobirdApp.Client;
 using Microsoft.AspNetCore.HttpLogging;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.ConfigureAppConfiguration(builder =>
+{
+    builder.AddEnvironmentVariables("APP_");
+});
 
 // Add services to the container.
 
@@ -8,6 +14,7 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHttpClient<ApiClient>();
 builder.Services.AddHttpLogging(logging =>
 {
     logging.LoggingFields = HttpLoggingFields.All;

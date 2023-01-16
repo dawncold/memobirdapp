@@ -15,4 +15,8 @@
       <None Remove=".dockerignore" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Response" />
+    </ItemGroup>
+
 </Project>

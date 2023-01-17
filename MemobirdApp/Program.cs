@@ -1,3 +1,4 @@
+using System.Text;
 using MemobirdApp.Client;
 using Microsoft.AspNetCore.HttpLogging;
 
@@ -5,8 +6,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.ConfigureAppConfiguration(builder =>
 {
-    builder.AddEnvironmentVariables("APP_");
+    builder.AddEnvironmentVariables("MEMOBIRDAPP_");
 });
+
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
 // Add services to the container.
 

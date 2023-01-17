@@ -1,4 +1,5 @@
-﻿using MemobirdApp.Config;
+﻿using System.Text;
+using MemobirdApp.Config;
 
 namespace MemobirdApp.Client;
 
@@ -21,7 +22,7 @@ public class ApiClient
         var req = new PrintPaperRequest(_appConfig.Ak)
         {
             MemobirdId = _appConfig.DeviceId,
-            PrintContent = content,
+            PrintContent = GetPrintContent(content),
             UserId = _appConfig.UserId
         };
         var responseMessage = await _httpClient.PostAsync("printpaper", JsonContent.Create(req));
@@ -33,5 +34,11 @@ public class ApiClient
         }
 
         return false;
+    }
+
+    private string GetPrintContent(string content)
+    {
+        var encodedContent = Encoding.GetEncoding("gbk").GetBytes(content);
+        return $"T:{Convert.ToBase64String(encodedContent)}";
     }
 }

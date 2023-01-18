@@ -12,11 +12,14 @@ public class PrinterController: ControllerBase
 {
     private readonly ApiClient _apiClient;
     private readonly IMemoryCache _memoryCache;
+    private readonly TimeZoneInfo _cstTZ;
+    private const string CacheKey = "keys:work";
 
     public PrinterController(ApiClient apiClient, IMemoryCache memoryCache)
     {
         _apiClient = apiClient;
         _memoryCache = memoryCache;
+        _cstTZ = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
     }
 
     [HttpPost("print")]
@@ -31,12 +34,12 @@ public class PrinterController: ControllerBase
     public async Task<IActionResult> RecordStartWork()
     {
         var sb = new StringBuilder();
-        var lastWorkItem = _memoryCache.Get<WorkItem>("keys:work");
+        var lastWorkItem = _memoryCache.Get<WorkItem>(CacheKey);
         if (lastWorkItem == null)
         {
             // start day
             sb.AppendLine("Have a nice day");
-            sb.AppendLine($"----- {DateTime.Now.ToShortDateString()} -----");
+            sb.AppendLine($"----- {GetLocalDateString()} -----");
         }
         else
         {
@@ -48,27 +51,23 @@ public class PrinterController: ControllerBase
             if (lastWorkItem.WorkItemType == WorkItemType.Start)
             {
                 // forget end last work item? help to end
-                var elapsed = DateTime.Now - lastWorkItem.RecordedAt;
-                sb.AppendLine($"[{DateTime.Now.ToShortTimeString()}] End working");
-                sb.AppendLine($"----- elapsed: {elapsed.Hours}h{elapsed.Minutes}m -----");
-                if (DateTime.Now.Date > lastWorkItem.RecordedAt.Date)
+                var elapsed = DateTime.UtcNow - lastWorkItem.RecordedAt;
+                sb.AppendLine($"[{GetLocalTimeString()}] End working");
+                sb.AppendLine($"----- elapsed: {GetElapsedString(elapsed)} -----");
+                if (DateTime.UtcNow.Date > lastWorkItem.RecordedAt.Date)
                 {
                     // end day
-                    sb.AppendLine($"----- {lastWorkItem.RecordedAt.ToShortDateString()} -----");
+                    sb.AppendLine($"----- {lastWorkItem.RecordedAt.ToString("MM/dd/yyyy")} -----");
                     sb.AppendLine("Have a nice sleep");
                     // start day
                     sb.AppendLine("Have a nice day"); 
-                    sb.AppendLine($"----- {DateTime.Now.ToShortDateString()} -----");
+                    sb.AppendLine($"----- {GetLocalDateString()} -----");
                 }
             }
         }
 
-        sb.AppendLine($"[{DateTime.Now.ToShortTimeString()}] Start working");
-        _memoryCache.Set("keys:work", new WorkItem
-        {
-            RecordedAt = DateTime.Now,
-            WorkItemType = WorkItemType.Start
-        });
+        sb.AppendLine($"[{GetLocalTimeString()}] Start working");
+        RecordWorkItem(WorkItemType.Start);
         var succeed = await _apiClient.PrintPaper(sb.ToString());
         if (succeed) return Accepted();
         return BadRequest("something wrong");
@@ -78,7 +77,7 @@ public class PrinterController: ControllerBase
     public async Task<IActionResult> RecordEndWork()
     {
         var sb = new StringBuilder();
-        var lastWorkItem = _memoryCache.Get<WorkItem>("keys:work");
+        var lastWorkItem = _memoryCache.Get<WorkItem>(CacheKey);
         if (lastWorkItem == null)
         {
             // should have a start record, if not, do nothing
@@ -94,18 +93,14 @@ public class PrinterController: ControllerBase
 
             if (lastWorkItem.WorkItemType == WorkItemType.Start)
             {
-                var elapsed = DateTime.Now - lastWorkItem.RecordedAt;
-                sb.AppendLine($"[{DateTime.Now.ToShortTimeString()}] End working");
-                sb.Append($"----- elapsed: {elapsed.Hours}h{elapsed.Minutes}m -----");
-                _memoryCache.Set("keys:work", new WorkItem
-                {
-                    RecordedAt = DateTime.Now,
-                    WorkItemType = WorkItemType.End
-                });
-                if (DateTime.Now.Date > lastWorkItem.RecordedAt.Date)
+                var elapsed = DateTime.UtcNow - lastWorkItem.RecordedAt;
+                sb.AppendLine($"[{GetLocalTimeString()}] End working");
+                sb.Append($"----- elapsed: {GetElapsedString(elapsed)} -----");
+                RecordWorkItem(WorkItemType.End);
+                if (DateTime.UtcNow.Date > lastWorkItem.RecordedAt.Date)
                 {
                     // end day
-                    sb.AppendLine($"----- {lastWorkItem.RecordedAt.ToShortDateString()} -----");
+                    sb.AppendLine($"----- {lastWorkItem.RecordedAt.ToString("MM/dd/yyyy")} -----");
                     sb.AppendLine("Have a nice sleep");
                 }
             }
@@ -114,5 +109,55 @@ public class PrinterController: ControllerBase
         var succeed = await _apiClient.PrintPaper(sb.ToString());
         if (succeed) return Accepted();
         return BadRequest("something wrong");
+    }
+
+    private string GetLocalDateString()
+    {
+        var dt = DateTime.UtcNow;
+        return TimeZoneInfo.ConvertTimeFromUtc(dt, _cstTZ).ToString("MM/dd/yyyy");
+    }
+
+    private string GetLocalTimeString()
+    {
+        var dt = DateTime.UtcNow;
+        return TimeZoneInfo.ConvertTimeFromUtc(dt, _cstTZ).ToString("h:mm tt");
+    }
+
+    private void RecordWorkItem(WorkItemType type)
+    {
+        _memoryCache.Set(CacheKey, new WorkItem
+        {
+            RecordedAt = DateTime.UtcNow,
+            WorkItemType = type
+        });
+    }
+
+    private string GetElapsedString(TimeSpan span)
+    {
+        var sb = new StringBuilder();
+        if (span.Hours > 0)
+        {
+            sb.Append($"{span.Hours}h");
+        }
+
+        if (span.Minutes > 0)
+        {
+            sb.Append($"{span.Minutes}m");
+        }
+        else
+        {
+            if (span.Seconds > 0)
+            {
+                if (span.Hours > 0)
+                {
+                    sb.Append($"{span.Minutes}m{span.Seconds}s");
+                }
+                else
+                {
+                    sb.Append($"{span.Seconds}s");
+                }
+            }
+        }
+        return sb.ToString();
     }
 }

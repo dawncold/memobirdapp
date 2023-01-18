@@ -31,4 +31,5 @@ jobs:
       uses: docker/build-push-action@v3.3.0
       with:
         push: true
+        platforms: linux/amd64,linux/arm64
         tags: ghcr.io/ztatw/memobirdapp:latest

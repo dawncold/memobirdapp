@@ -143,6 +143,10 @@ public class PrinterController: ControllerBase
         if (span.Minutes > 0)
         {
             sb.Append($"{span.Minutes}m");
+            if (span.Seconds > 0)
+            {
+                sb.Append($"{span.Seconds}s");
+            }
         }
         else
         {

@@ -23,4 +23,4 @@ jobs:
       uses: docker/build-push-action@v3.3.0
       with:
         push: true
-        tags: ztatw/memobirdapp:latest
+        tags: ghcr.io/ztatw/memobirdapp:latest
